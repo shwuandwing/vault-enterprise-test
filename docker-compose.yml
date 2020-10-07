@@ -1,0 +1,79 @@
+version: '3.7'
+services:
+  vault_transit:
+    image: hashicorp/vault-enterprise:1.5.4_ent
+    ports:
+      - "8202:8200"
+    expose:
+      - "8201"
+    environment:
+      - VAULT_LOCAL_CONFIG={"storage":{"inmem":{}},"api_addr":"http://vault_transit:8200","cluster_addr":"http://vault_transit:8201"}
+      - VAULT_UI=true
+      - VAULT_DEV_ROOT_TOKEN_ID=root
+    cap_add:
+      - IPC_LOCK
+  vault_1:
+    image: hashicorp/vault-enterprise:1.5.4_ent
+    command: server
+    ports:
+      - "8200:8200"
+    expose:
+      - "8201"
+    environment:
+      - VAULT_LOCAL_CONFIG={"storage":{"consul":{"address":"consul:8500"}},"listener":[{"tcp":{"address":"0.0.0.0:8200","tls_disable":"true"}}],"api_addr":"http://vault_1:8200","cluster_addr":"http://vault_1:8201","telemetry":[{"statsd_address":"statsd:8125"}],"seal":{"transit":{"address":"http://vault_transit:8200","disable_renewal":"false","key_name":"auto-unseal","mount_path":"transit","tls_skip_verify":"false","token":"root"}}}
+      - VAULT_UI=true
+    cap_add:
+      - IPC_LOCK
+    depends_on:
+      - consul
+      - vault_transit
+  vault_2:
+    image: hashicorp/vault-enterprise:1.5.4_ent
+    command: server
+    ports:
+      - "7996:7998"
+      - "8198:8200"
+    expose:
+      - "7999"
+      - "8201"
+    environment:
+      - VAULT_LOCAL_CONFIG={"storage":{"consul":{"address":"consul:8500"}},"listener":[{"tcp":{"address":"0.0.0.0:8200","tls_disable":"true"}}],"api_addr":"http://vault_2:8200","cluster_addr":"http://vault_2:8201","telemetry":[{"statsd_address":"statsd:8125"}],"seal":{"transit":{"address":"http://vault_transit:8200","disable_renewal":"false","key_name":"auto-unseal","mount_path":"transit","tls_skip_verify":"false","token":"root"}}}
+      - VAULT_UI=true
+    cap_add:
+      - IPC_LOCK
+    depends_on:
+      - consul
+      - vault_1
+  vault_3:
+    image: hashicorp/vault-enterprise:1.5.4_ent
+    command: server
+    ports:
+      - "7994:7998"
+      - "8196:8200"
+    expose:
+      - "7999"
+      - "8201"
+    environment:
+      - VAULT_LOCAL_CONFIG={"storage":{"consul":{"address":"consul:8500"}},"listener":[{"tcp":{"address":"0.0.0.0:8200","tls_disable":"true"}}],"api_addr":"http://vault_3:8200","cluster_addr":"http://vault_3:8201","telemetry":[{"statsd_address":"statsd:8125"}],"seal":{"transit":{"address":"http://vault_transit:8200","disable_renewal":"false","key_name":"auto-unseal","mount_path":"transit","tls_skip_verify":"false","token":"root"}}}
+      - VAULT_UI=true
+    cap_add:
+      - IPC_LOCK
+    depends_on:
+      - consul
+      - vault_2
+  consul:
+    image: consul:1.6.3
+    ports:
+      - "8500:8500"
+    environment:
+      - CONSUL_LOCAL_CONFIG={"log_level":"INFO"}
+  statsd:
+    image: graphiteapp/graphite-statsd:1.1.7-6
+    ports:
+      - "8125:8125/tcp"
+      - "8125:8125/udp"
+      - "80:80"
+      - "2003:2003"
+      - "2004:2004"
+      - "2023:2023"
+      - "2024:2024"
